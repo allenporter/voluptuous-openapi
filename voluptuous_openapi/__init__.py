@@ -433,9 +433,14 @@ def convert(
         return {"type": "object", "additionalProperties": True}
 
     if callable(schema):
-        schema = get_type_hints(schema).get(
-            list(signature(schema).parameters.keys())[0], Any
-        )
+        try:
+            hints = get_type_hints(schema)
+        except TypeError:
+            hints = (
+                get_type_hints(schema.__call__) if hasattr(schema, "__call__") else {}
+            )
+        params = list(signature(schema).parameters.keys())
+        schema = hints.get(params[0], Any) if params else Any
         if schema is Any or isinstance(schema, TypeVar):
             return {}
         if isinstance(schema, UnionType) or get_origin(schema) is Union:
@@ -524,6 +529,9 @@ class LazySchema:
         if not isinstance(other, LazySchema):
             return False
         return self.ref == other.ref and self.root_schema == other.root_schema
+
+    def __hash__(self) -> int:
+        return hash(self.ref)
 
     def __repr__(self) -> str:
         return f"LazySchema({self.ref!r})"

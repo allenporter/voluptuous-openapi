@@ -9,6 +9,7 @@ from voluptuous_openapi import (
     convert,
     convert_to_voluptuous,
     OpenApiVersion,
+    LazySchema,
 )
 
 
@@ -1315,3 +1316,20 @@ def test_anonymized_ghp_home_automation_invalid() -> None:
     }
     with pytest.raises(vol.Invalid):
         validator(invalid_automation)
+
+
+def test_lazy_schema_hashable_and_convert() -> None:
+    """Test that LazySchema is hashable and can be converted."""
+    root_schema = {"type": "object", "properties": {"value": {"type": "string"}}}
+    lazy = LazySchema("#/properties/value", root_schema)
+
+    # Verify hashability
+    assert hash(lazy) is not None
+    s = {lazy}
+    assert lazy in s
+
+    # Verify convert() handles it without raising TypeError
+    # We expect convert to resolve the type hints / signature of LazySchema.__call__
+    # and return the corresponding schema conversion (or empty dict if Any).
+    res = convert(vol.Schema(lazy))
+    assert isinstance(res, dict)
